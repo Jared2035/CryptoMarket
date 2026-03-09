@@ -24,6 +24,7 @@ async def startup_event():
 
 
 @app.get("/")
+@app.head("/")
 async def root():
     """返回前端页面"""
     return FileResponse("../frontend/index.html")
@@ -84,6 +85,7 @@ async def manual_update():
 
 
 @app.get("/api/health")
+@app.head("/api/health")
 async def health_check():
     """健康检查"""
     return {
