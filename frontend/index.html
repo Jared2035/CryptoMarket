@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoMarket - BTC ETF Flow</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>CryptoMarket</h1>
+            <p class="subtitle">实时加密货币市场数据</p>
+        </header>
+
+        <main>
+            <section class="data-card">
+                <div class="card-header">
+                    <h2>Bitcoin ETF Flow</h2>
+                    <div class="update-info">
+                        <span id="last-update">加载中...</span>
+                        <span id="countdown"></span>
+                    </div>
+                </div>
+                
+                <div class="summary-cards" id="summary">
+                    <!-- 汇总卡片将在这里显示 -->
+                </div>
+
+                <div class="table-container">
+                    <table id="etf-table">
+                        <thead>
+                            <tr>
+                                <th>日期</th>
+                                <th>Blackrock</th>
+                                <th>Fidelity</th>
+                                <th>Bitwise</th>
+                                <th>Ark</th>
+                                <th>Invesco</th>
+                                <th>Franklin</th>
+                                <th>Valkyrie</th>
+                                <th>VanEck</th>
+                                <th>WTree</th>
+                                <th>Grayscale GB</th>
+                                <th>Grayscale BTC</th>
+                                <th class="total">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body">
+                            <!-- 数据将在这里显示 -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>数据来源: <a href="https://farside.co.uk/btc/" target="_blank">Farside Investors</a></p>
+            <p>&copy; 2026 CryptoMarket</p>
+        </footer>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
