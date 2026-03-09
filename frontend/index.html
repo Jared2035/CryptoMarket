@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CryptoMarket - BTC ETF Flow</title>
+    <title>CryptoMarket - BTC & ETH ETF Flow</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
@@ -14,21 +14,28 @@
         </header>
 
         <main>
+            <!-- 价格显示区域 -->
+            <section class="prices-section">
+                <div class="price-cards" id="price-cards">
+                    <!-- 价格卡片将在这里显示 -->
+                </div>
+            </section>
+
+            <!-- BTC ETF 数据 -->
             <section class="data-card">
                 <div class="card-header">
                     <h2>Bitcoin ETF Flow</h2>
                     <div class="update-info">
-                        <span id="last-update">加载中...</span>
-                        <span id="countdown"></span>
+                        <span id="btc-last-update">加载中...</span>
                     </div>
                 </div>
                 
-                <div class="summary-cards" id="summary">
-                    <!-- 汇总卡片将在这里显示 -->
+                <div class="summary-cards" id="btc-summary">
+                    <!-- BTC 汇总卡片 -->
                 </div>
 
                 <div class="table-container">
-                    <table id="etf-table">
+                    <table id="btc-table">
                         <thead>
                             <tr>
                                 <th>日期</th>
@@ -46,8 +53,45 @@
                                 <th class="total">Total</th>
                             </tr>
                         </thead>
-                        <tbody id="table-body">
-                            <!-- 数据将在这里显示 -->
+                        <tbody id="btc-table-body">
+                            <!-- BTC 数据 -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ETH ETF 数据 -->
+            <section class="data-card">
+                <div class="card-header">
+                    <h2>Ethereum ETF Flow</h2>
+                    <div class="update-info">
+                        <span id="eth-last-update">加载中...</span>
+                    </div>
+                </div>
+                
+                <div class="summary-cards" id="eth-summary">
+                    <!-- ETH 汇总卡片 -->
+                </div>
+
+                <div class="table-container">
+                    <table id="eth-table">
+                        <thead>
+                            <tr>
+                                <th>日期</th>
+                                <th>Blackrock</th>
+                                <th>Fidelity</th>
+                                <th>Bitwise</th>
+                                <th>21Shares</th>
+                                <th>VanEck</th>
+                                <th>Invesco</th>
+                                <th>Franklin</th>
+                                <th>Grayscale ET</th>
+                                <th>Grayscale ETH</th>
+                                <th class="total">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="eth-table-body">
+                            <!-- ETH 数据 -->
                         </tbody>
                     </table>
                 </div>
@@ -55,7 +99,7 @@
         </main>
 
         <footer>
-            <p>数据来源: <a href="https://farside.co.uk/btc/" target="_blank">Farside Investors</a></p>
+            <p>数据来源: <a href="https://farside.co.uk/" target="_blank">Farside Investors</a> | 价格: <a href="https://www.coingecko.com/" target="_blank">CoinGecko</a></p>
             <p>&copy; 2026 CryptoMarket</p>
         </footer>
     </div>

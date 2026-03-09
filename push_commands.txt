@@ -1,0 +1,25 @@
+:: CryptoMarket 一键推送脚本
+:: 使用方法：复制以下内容到 PowerShell 执行
+
+:: 进入项目目录
+cd C:\Users\jared\.openclaw\workspace\CryptoMarket
+
+:: 配置 Git 用户信息（只需执行一次，已配置可跳过）
+git config user.name "你的GitHub用户名"
+git config user.email "lihuabing2008@gmail.com"
+
+:: 添加所有更改
+git add .
+
+:: 提交更改
+git commit -m "更新代码"
+
+:: 推送到 GitHub
+:: 提示输入用户名和密码时：
+:: 用户名：你的GitHub用户名
+:: 密码：你的GitHub Personal Access Token（不是登录密码）
+git push origin main
+
+:: 完成提示
+echo "推送完成！等待 Railway 自动部署（约1-2分钟）"
+echo "访问：https://cryptomarket-production.up.railway.app"

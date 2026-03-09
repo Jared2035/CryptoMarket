@@ -1,9 +1,6 @@
 /**
- * CryptoMarket 前端应用
+ * CryptoMarket 前端应用（支持 BTC + ETH + 实时价格）
  */
-
-// API 基础 URL
-const API_BASE = '';
 
 // 格式化数字
 function formatNumber(num) {
@@ -12,16 +9,25 @@ function formatNumber(num) {
     return num > 0 ? `+${formatted}` : formatted;
 }
 
+// 格式化价格
+function formatPrice(price) {
+    if (!price) return '-';
+    return '$' + price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+
+// 格式化百分比
+function formatPercent(value) {
+    if (!value) return '0.00%';
+    const sign = value >= 0 ? '+' : '';
+    return `${sign}${value.toFixed(2)}%`;
+}
+
 // 格式化日期
 function formatDate(dateStr) {
-    if (!dateStr || dateStr === 'Invalid Date') {
-        return '未知';
-    }
+    if (!dateStr || dateStr === 'Invalid Date') return '未知';
     try {
         const date = new Date(dateStr);
-        if (isNaN(date.getTime())) {
-            return '未知';
-        }
+        if (isNaN(date.getTime())) return '未知';
         return date.toLocaleString('zh-CN');
     } catch (e) {
         return '未知';
@@ -31,7 +37,7 @@ function formatDate(dateStr) {
 // 获取数据
 async function fetchData() {
     try {
-        const response = await fetch('/api/btc-etf-flow');
+        const response = await fetch('/api/data');
         if (!response.ok) throw new Error('获取数据失败');
         return await response.json();
     } catch (error) {
@@ -40,45 +46,58 @@ async function fetchData() {
     }
 }
 
-// 渲染汇总卡片
-function renderSummary(dailyData) {
-    const summaryContainer = document.getElementById('summary');
-    
-    if (!dailyData || dailyData.length === 0) {
-        summaryContainer.innerHTML = '<div class="summary-card"><h3>暂无数据</h3></div>';
+// 渲染价格卡片
+function renderPrices(prices) {
+    const container = document.getElementById('price-cards');
+    if (!prices || !prices.btc || !prices.eth) {
+        container.innerHTML = '<div class="price-card"><h3>价格加载中...</h3></div>';
         return;
     }
-    
-    // 计算统计数据
-    const latest = dailyData[0];
-    const totalInflow = dailyData.reduce((sum, d) => sum + (d.total || 0), 0);
-    const positiveDays = dailyData.filter(d => (d.total || 0) > 0).length;
-    const negativeDays = dailyData.filter(d => (d.total || 0) < 0).length;
-    
+
+    const btcChangeClass = prices.btc.change_24h >= 0 ? 'positive' : 'negative';
+    const ethChangeClass = prices.eth.change_24h >= 0 ? 'positive' : 'negative';
+
+    container.innerHTML = `
+        <div class="price-card btc">
+            <div class="price-header">
+                <img src="https://cryptologos.cc/logos/bitcoin-btc-logo.png" alt="BTC" class="coin-icon">
+                <h3>Bitcoin</h3>
+            </div>
+            <div class="price-value">${formatPrice(prices.btc.price)}</div>
+            <div class="price-change ${btcChangeClass}">${formatPercent(prices.btc.change_24h)}</div>
+        </div>
+        <div class="price-card eth">
+            <div class="price-header">
+                <img src="https://cryptologos.cc/logos/ethereum-eth-logo.png" alt="ETH" class="coin-icon">
+                <h3>Ethereum</h3>
+            </div>
+            <div class="price-value">${formatPrice(prices.eth.price)}</div>
+            <div class="price-change ${ethChangeClass}">${formatPercent(prices.eth.change_24h)}</div>
+        </div>
+    `;
+}
+
+// 渲染 ETF 汇总卡片
+function renderETFSummary(data, containerId, coin) {
+    const container = document.getElementById(containerId);
+    if (!data || !data.daily_data || data.daily_data.length === 0) {
+        container.innerHTML = '<div class="summary-card"><h3>暂无数据</h3></div>';
+        return;
+    }
+
+    const latest = data.daily_data[0];
+    const totalInflow = data.daily_data.reduce((sum, d) => sum + (d.total || 0), 0);
+    const positiveDays = data.daily_data.filter(d => (d.total || 0) > 0).length;
+    const negativeDays = data.daily_data.filter(d => (d.total || 0) < 0).length;
+
     const cards = [
-        {
-            title: '最新流入',
-            value: latest.total || 0,
-            class: (latest.total || 0) >= 0 ? 'positive' : 'negative'
-        },
-        {
-            title: '累计流入',
-            value: totalInflow,
-            class: totalInflow >= 0 ? 'positive' : 'negative'
-        },
-        {
-            title: '流入天数',
-            value: positiveDays,
-            class: 'positive'
-        },
-        {
-            title: '流出天数',
-            value: negativeDays,
-            class: 'negative'
-        }
+        { title: '最新流入', value: latest.total || 0, class: (latest.total || 0) >= 0 ? 'positive' : 'negative' },
+        { title: '累计流入', value: totalInflow, class: totalInflow >= 0 ? 'positive' : 'negative' },
+        { title: '流入天数', value: positiveDays, class: 'positive' },
+        { title: '流出天数', value: negativeDays, class: 'negative' }
     ];
-    
-    summaryContainer.innerHTML = cards.map(card => `
+
+    container.innerHTML = cards.map(card => `
         <div class="summary-card">
             <h3>${card.title}</h3>
             <div class="value ${card.class}">${formatNumber(card.value)}M</div>
@@ -86,32 +105,34 @@ function renderSummary(dailyData) {
     `).join('');
 }
 
-// 渲染表格
-function renderTable(dailyData) {
-    const tbody = document.getElementById('table-body');
-    
-    if (!dailyData || dailyData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="13">暂无数据</td></tr>';
+// 渲染 ETF 表格
+function renderETFTable(data, tbodyId, coin) {
+    const tbody = document.getElementById(tbodyId);
+    if (!data || !data.daily_data || data.daily_data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="13">暂无数据</td></tr>`;
         return;
     }
-    
-    tbody.innerHTML = dailyData.map(row => {
-        const cells = [
-            row.date || '-',
-            row.blackrock || 0,
-            row.fidelity || 0,
-            row.bitwise || 0,
-            row.ark || 0,
-            row.invesco || 0,
-            row.franklin || 0,
-            row.valkyrie || 0,
-            row.vaneck || 0,
-            row.wtree || 0,
-            row.grayscale_gb || 0,
-            row.grayscale_btc || 0,
-            row.total || 0
-        ];
-        
+
+    tbody.innerHTML = data.daily_data.map(row => {
+        let cells;
+        if (coin === 'btc') {
+            cells = [
+                row.date || '-',
+                row.blackrock || 0, row.fidelity || 0, row.bitwise || 0,
+                row.ark || 0, row.invesco || 0, row.franklin || 0,
+                row.valkyrie || 0, row.vaneck || 0, row.wtree || 0,
+                row.grayscale_gb || 0, row.grayscale_btc || 0, row.total || 0
+            ];
+        } else {
+            cells = [
+                row.date || '-',
+                row.blackrock || 0, row.fidelity || 0, row.bitwise || 0,
+                row.shares21 || 0, row.vaneck || 0, row.invesco || 0,
+                row.franklin || 0, row.grayscale_et || 0, row.grayscale_eth || 0,
+                row.total || 0
+            ];
+        }
+
         return `
             <tr>
                 ${cells.map((cell, index) => {
@@ -130,30 +151,34 @@ async function updatePage() {
     const result = await fetchData();
     
     if (result && result.data) {
-        const { data, last_updated, server_time } = result;
+        const { data, server_time } = result;
         
-        // 更新最后更新时间
-        const updateEl = document.getElementById('last-update');
-        if (updateEl) {
-            updateEl.textContent = `最后更新: ${formatDate(last_updated)}`;
+        // 渲染价格
+        if (data.prices) {
+            renderPrices(data.prices);
         }
         
-        // 渲染数据
-        if (data && data.daily_data) {
-            renderSummary(data.daily_data);
-            renderTable(data.daily_data);
+        // 渲染 BTC
+        if (data.btc) {
+            const btcUpdateEl = document.getElementById('btc-last-update');
+            if (btcUpdateEl) {
+                btcUpdateEl.textContent = `最后更新: ${formatDate(data.btc.last_updated)}`;
+            }
+            renderETFSummary(data.btc, 'btc-summary', 'btc');
+            renderETFTable(data.btc, 'btc-table-body', 'btc');
         }
         
-        // 显示服务器时间
-        const countdownEl = document.getElementById('countdown');
-        if (countdownEl && server_time) {
-            countdownEl.textContent = `服务器时间: ${formatDate(server_time)}`;
+        // 渲染 ETH
+        if (data.eth) {
+            const ethUpdateEl = document.getElementById('eth-last-update');
+            if (ethUpdateEl) {
+                ethUpdateEl.textContent = `最后更新: ${formatDate(data.eth.last_updated)}`;
+            }
+            renderETFSummary(data.eth, 'eth-summary', 'eth');
+            renderETFTable(data.eth, 'eth-table-body', 'eth');
         }
     } else {
-        const updateEl = document.getElementById('last-update');
-        if (updateEl) {
-            updateEl.textContent = '数据加载失败';
-        }
+        console.error('数据加载失败');
     }
 }
 

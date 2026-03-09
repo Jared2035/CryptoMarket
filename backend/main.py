@@ -3,7 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from datetime import datetime
 import asyncio
-from scraper import get_data, auto_update, load_cached_data
+from scraper import auto_update, get_all_data, get_crypto_prices
 
 app = FastAPI(title="CryptoMarket API")
 
@@ -11,16 +11,18 @@ app = FastAPI(title="CryptoMarket API")
 app.mount("/static", StaticFiles(directory="../frontend"), name="static")
 
 # 全局数据缓存
-cached_data = None
-last_check = None
+cached_data = {'btc': None, 'eth': None, 'prices': None}
 
 
 @app.on_event("startup")
 async def startup_event():
     """启动时加载数据"""
     global cached_data
-    cached_data = load_cached_data()
-    print(f"启动完成，数据加载: {cached_data is not None}")
+    from scraper import load_data
+    cached_data['btc'] = load_data('btc')
+    cached_data['eth'] = load_data('eth')
+    cached_data['prices'] = get_crypto_prices()
+    print(f"启动完成，BTC: {cached_data['btc'] is not None}, ETH: {cached_data['eth'] is not None}")
 
 
 @app.get("/")
@@ -30,40 +32,53 @@ async def root():
     return FileResponse("../frontend/index.html")
 
 
-@app.get("/api/btc-etf-flow")
-async def get_btc_etf_flow(background_tasks: BackgroundTasks):
+@app.get("/api/data")
+async def get_data(background_tasks: BackgroundTasks):
     """
-    获取 BTC ETF Flow 数据
+    获取所有数据（BTC + ETH + 价格）
     后台自动检查是否需要更新
     """
-    global cached_data, last_check
+    global cached_data
     
-    # 后台触发自动更新检查（不阻塞响应）
+    # 后台触发自动更新检查
     background_tasks.add_task(background_auto_update)
     
-    # 返回当前数据
-    if cached_data is None:
-        cached_data = load_cached_data()
-    
-    if cached_data is None:
-        raise HTTPException(status_code=503, detail="数据暂时不可用")
+    # 获取最新价格（每次访问都刷新）
+    cached_data['prices'] = get_crypto_prices()
     
     return {
-        "data": cached_data,
-        "last_updated": cached_data.get('last_updated'),
-        "server_time": datetime.now().isoformat()
+        'data': cached_data,
+        'server_time': datetime.now().isoformat()
     }
+
+
+@app.get("/api/prices")
+async def get_prices():
+    """获取实时价格"""
+    prices = get_crypto_prices()
+    if prices:
+        return prices
+    raise HTTPException(status_code=503, detail="价格数据暂时不可用")
 
 
 async def background_auto_update():
     """后台自动更新任务"""
     global cached_data
     try:
-        success, msg = auto_update()
+        # 更新 BTC
+        success, msg = auto_update('btc')
         if success:
-            # 重新加载数据
-            cached_data = load_cached_data()
-            print(f"[{datetime.now()}] 自动更新: {msg}")
+            from scraper import load_data
+            cached_data['btc'] = load_data('btc')
+            print(f"[{datetime.now()}] BTC: {msg}")
+        
+        # 更新 ETH
+        success, msg = auto_update('eth')
+        if success:
+            from scraper import load_data
+            cached_data['eth'] = load_data('eth')
+            print(f"[{datetime.now()}] ETH: {msg}")
+            
     except Exception as e:
         print(f"[{datetime.now()}] 自动更新失败: {e}")
 
@@ -72,15 +87,25 @@ async def background_auto_update():
 async def manual_update():
     """手动触发更新"""
     global cached_data
-    success, msg = auto_update()
     
+    results = {}
+    from scraper import load_data
+    
+    # 更新 BTC
+    success, msg = auto_update('btc')
+    results['btc'] = {'success': success, 'message': msg}
     if success:
-        cached_data = load_cached_data()
+        cached_data['btc'] = load_data('btc')
+    
+    # 更新 ETH
+    success, msg = auto_update('eth')
+    results['eth'] = {'success': success, 'message': msg}
+    if success:
+        cached_data['eth'] = load_data('eth')
     
     return {
-        "success": success,
-        "message": msg,
-        "timestamp": datetime.now().isoformat()
+        'results': results,
+        'timestamp': datetime.now().isoformat()
     }
 
 
@@ -89,12 +114,8 @@ async def manual_update():
 async def health_check():
     """健康检查"""
     return {
-        "status": "ok",
-        "timestamp": datetime.now().isoformat(),
-        "data_loaded": cached_data is not None
+        'status': 'ok',
+        'timestamp': datetime.now().isoformat(),
+        'btc_loaded': cached_data['btc'] is not None,
+        'eth_loaded': cached_data['eth'] is not None
     }
-
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)

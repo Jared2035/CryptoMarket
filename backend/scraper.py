@@ -1,14 +1,15 @@
 """
-Farside BTC ETF 数据抓取模块（自动更新版本）
+Farside ETF 数据抓取模块（支持 BTC 和 ETH）
 """
 
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 import requests
 from bs4 import BeautifulSoup
 
-DATA_FILE = os.path.join(os.path.dirname(__file__), 'btc_etf_data.json')
+DATA_DIR = os.path.dirname(__file__)
+
 
 def parse_value(value_str):
     """解析数值，处理括号和逗号"""
@@ -21,12 +22,17 @@ def parse_value(value_str):
         return 0
 
 
-def scrape_btc_etf_flow():
+def scrape_etf_flow(coin='btc'):
     """
-    尝试抓取 Farside BTC ETF Flow 数据
-    如果失败返回 None
+    抓取 Farside ETF Flow 数据
+    
+    Args:
+        coin: 'btc' 或 'eth'
+    
+    Returns:
+        dict: ETF 数据
     """
-    url = 'https://farside.co.uk/btc/'
+    url = f'https://farside.co.uk/{coin}/'
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     }
@@ -65,21 +71,40 @@ def scrape_btc_etf_flow():
                         result['summary'][date_str] = row_data
                     else:
                         try:
-                            result['daily_data'].append({
-                                'date': date_str,
-                                'blackrock': parse_value(row_data[1]),
-                                'fidelity': parse_value(row_data[2]),
-                                'bitwise': parse_value(row_data[3]),
-                                'ark': parse_value(row_data[4]),
-                                'invesco': parse_value(row_data[5]),
-                                'franklin': parse_value(row_data[6]),
-                                'valkyrie': parse_value(row_data[7]),
-                                'vaneck': parse_value(row_data[8]),
-                                'wtree': parse_value(row_data[9]),
-                                'grayscale_gb': parse_value(row_data[10]),
-                                'grayscale_btc': parse_value(row_data[11]),
-                                'total': parse_value(row_data[12])
-                            })
+                            # 动态解析列数（BTC 和 ETH 列数不同）
+                            data_row = {'date': date_str}
+                            
+                            # 根据 coin 类型解析不同的列
+                            if coin == 'btc':
+                                data_row.update({
+                                    'blackrock': parse_value(row_data[1]),
+                                    'fidelity': parse_value(row_data[2]),
+                                    'bitwise': parse_value(row_data[3]),
+                                    'ark': parse_value(row_data[4]),
+                                    'invesco': parse_value(row_data[5]),
+                                    'franklin': parse_value(row_data[6]),
+                                    'valkyrie': parse_value(row_data[7]),
+                                    'vaneck': parse_value(row_data[8]),
+                                    'wtree': parse_value(row_data[9]),
+                                    'grayscale_gb': parse_value(row_data[10]),
+                                    'grayscale_btc': parse_value(row_data[11]),
+                                    'total': parse_value(row_data[12])
+                                })
+                            elif coin == 'eth':
+                                data_row.update({
+                                    'blackrock': parse_value(row_data[1]),
+                                    'fidelity': parse_value(row_data[2]),
+                                    'bitwise': parse_value(row_data[3]),
+                                    'shares21': parse_value(row_data[4]),
+                                    'vaneck': parse_value(row_data[5]),
+                                    'invesco': parse_value(row_data[6]),
+                                    'franklin': parse_value(row_data[7]),
+                                    'grayscale_et': parse_value(row_data[8]),
+                                    'grayscale_eth': parse_value(row_data[9]),
+                                    'total': parse_value(row_data[10])
+                                })
+                            
+                            result['daily_data'].append(data_row)
                         except (IndexError, ValueError):
                             continue
         
@@ -87,117 +112,114 @@ def scrape_btc_etf_flow():
         return result
         
     except Exception as e:
-        print(f"抓取失败: {e}")
+        print(f"抓取 {coin.upper()} 失败: {e}")
         return None
 
 
-def load_cached_data():
+def get_crypto_prices():
+    """
+    获取 BTC 和 ETH 实时价格（CoinGecko 免费 API）
+    """
+    try:
+        url = 'https://api.coingecko.com/api/v3/simple/price'
+        params = {
+            'ids': 'bitcoin,ethereum',
+            'vs_currencies': 'usd',
+            'include_24hr_change': 'true'
+        }
+        
+        response = requests.get(url, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        
+        return {
+            'btc': {
+                'price': data['bitcoin']['usd'],
+                'change_24h': data['bitcoin'].get('usd_24h_change', 0)
+            },
+            'eth': {
+                'price': data['ethereum']['usd'],
+                'change_24h': data['ethereum'].get('usd_24h_change', 0)
+            },
+            'last_updated': datetime.now().isoformat()
+        }
+    except Exception as e:
+        print(f"获取价格失败: {e}")
+        return None
+
+
+def load_data(coin='btc'):
     """加载缓存数据"""
-    if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, 'r', encoding='utf-8') as f:
+    filepath = os.path.join(DATA_DIR, f'{coin}_etf_data.json')
+    if os.path.exists(filepath):
+        with open(filepath, 'r', encoding='utf-8') as f:
             return json.load(f)
     return None
 
 
-def save_data(data):
+def save_data(data, coin='btc'):
     """保存数据到 JSON 文件"""
-    with open(DATA_FILE, 'w', encoding='utf-8') as f:
+    filepath = os.path.join(DATA_DIR, f'{coin}_etf_data.json')
+    with open(filepath, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
-def should_update_data():
-    """
-    判断是否应该更新数据
-    规则：
-    1. 工作日（周一到周五）
-    2. 北京时间 10:00-12:00 或 12:00-14:00
-    3. 数据不是今天的
-    """
-    now = datetime.now()
-    weekday = now.weekday()  # 0=周一, 6=周日
-    
-    # 周末不更新
-    if weekday >= 5:  # 周六或周日
-        return False, "周末休市"
-    
-    # 加载现有数据
-    data = load_cached_data()
-    if not data or 'daily_data' not in data or len(data['daily_data']) == 0:
-        return True, "无数据，需要抓取"
-    
-    # 检查最新数据日期
-    latest_date_str = data['daily_data'][0]['date']
-    
-    # 解析日期（格式如 "06 Mar 2026"）
-    try:
-        latest_date = datetime.strptime(latest_date_str, '%d %b %Y')
-    except:
-        return True, "日期解析失败，尝试更新"
-    
-    # 如果最新数据就是今天，不需要更新
-    if latest_date.date() == now.date():
-        return False, "数据已是最新"
-    
-    # 北京时间 10:00 后允许更新
-    hour = now.hour
-    if hour >= 10:
-        return True, f"需要更新（当前最新数据: {latest_date_str}）"
-    
-    return False, "未到更新时间"
-
-
-def auto_update():
+def auto_update(coin='btc'):
     """
     自动更新数据
     返回: (成功/失败, 消息)
     """
-    should_update, reason = should_update_data()
+    now = datetime.now()
+    weekday = now.weekday()
     
-    if not should_update:
-        return False, f"跳过更新: {reason}"
+    # 周末不更新
+    if weekday >= 5:
+        return False, f"{coin.upper()}: 周末休市"
+    
+    # 加载现有数据
+    old_data = load_data(coin)
     
     # 尝试抓取
-    new_data = scrape_btc_etf_flow()
+    new_data = scrape_etf_flow(coin)
     
     if new_data and len(new_data['daily_data']) > 0:
-        # 检查是否抓到了新数据
         latest_new = new_data['daily_data'][0]['date']
         
-        # 加载旧数据对比
-        old_data = load_cached_data()
         if old_data and len(old_data['daily_data']) > 0:
             latest_old = old_data['daily_data'][0]['date']
             
             if latest_new == latest_old:
                 # 数据相同，只更新时间戳
                 old_data['last_updated'] = datetime.now().isoformat()
-                save_data(old_data)
-                return True, f"数据未变化（最新: {latest_new}），已刷新时间戳"
+                save_data(old_data, coin)
+                return True, f"{coin.upper()}: 数据未变化（{latest_new}）"
         
         # 保存新数据
-        save_data(new_data)
-        return True, f"更新成功！最新数据: {latest_new}"
+        save_data(new_data, coin)
+        return True, f"{coin.upper()}: 更新成功（{latest_new}）"
     
-    return False, "抓取失败，保持现有数据"
+    return False, f"{coin.upper()}: 抓取失败"
 
 
-# 兼容旧接口
-def get_data():
-    """获取数据（优先缓存）"""
-    data = load_cached_data()
-    if data:
-        return data
-    
-    # 尝试抓取
-    new_data = scrape_btc_etf_flow()
-    if new_data:
-        save_data(new_data)
-        return new_data
-    
-    return None
+def get_all_data():
+    """获取所有数据（BTC + ETH + 价格）"""
+    return {
+        'btc': load_data('btc'),
+        'eth': load_data('eth'),
+        'prices': get_crypto_prices()
+    }
 
 
 if __name__ == '__main__':
-    # 测试自动更新
-    success, msg = auto_update()
-    print(f"结果: {success}, 消息: {msg}")
+    # 测试
+    print("测试 BTC 抓取...")
+    result = auto_update('btc')
+    print(result)
+    
+    print("\n测试 ETH 抓取...")
+    result = auto_update('eth')
+    print(result)
+    
+    print("\n测试价格获取...")
+    prices = get_crypto_prices()
+    print(prices)

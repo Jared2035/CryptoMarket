@@ -1,3 +1,5 @@
+/* CryptoMarket 样式 - 支持 BTC + ETH + 实时价格 */
+
 * {
     margin: 0;
     padding: 0;
@@ -40,6 +42,82 @@ header h1 {
     font-size: 1.1rem;
 }
 
+/* Prices Section */
+.prices-section {
+    margin-bottom: 40px;
+}
+
+.price-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.price-card {
+    background: rgba(255,255,255,0.05);
+    border-radius: 16px;
+    padding: 30px;
+    text-align: center;
+    border: 1px solid rgba(255,255,255,0.1);
+    transition: transform 0.3s;
+}
+
+.price-card:hover {
+    transform: translateY(-5px);
+}
+
+.price-card.btc {
+    background: linear-gradient(135deg, rgba(247,147,26,0.1) 0%, rgba(255,255,255,0.05) 100%);
+    border-color: rgba(247,147,26,0.3);
+}
+
+.price-card.eth {
+    background: linear-gradient(135deg, rgba(98,126,234,0.1) 0%, rgba(255,255,255,0.05) 100%);
+    border-color: rgba(98,126,234,0.3);
+}
+
+.price-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.coin-icon {
+    width: 40px;
+    height: 40px;
+}
+
+.price-header h3 {
+    font-size: 1.2rem;
+    color: #888;
+}
+
+.price-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.price-change {
+    font-size: 1.1rem;
+    font-weight: 600;
+    padding: 5px 15px;
+    border-radius: 20px;
+    display: inline-block;
+}
+
+.price-change.positive {
+    background: rgba(0,212,170,0.2);
+    color: #00d4aa;
+}
+
+.price-change.negative {
+    background: rgba(255,71,87,0.2);
+    color: #ff4757;
+}
+
 /* Data Card */
 .data-card {
     background: rgba(255,255,255,0.05);
@@ -47,6 +125,7 @@ header h1 {
     padding: 30px;
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255,255,255,0.1);
+    margin-bottom: 30px;
 }
 
 .card-header {
@@ -64,8 +143,6 @@ header h1 {
 }
 
 .update-info {
-    display: flex;
-    gap: 20px;
     color: #888;
     font-size: 0.9rem;
 }
@@ -189,16 +266,13 @@ footer a:hover {
     text-decoration: underline;
 }
 
-/* Loading */
-.loading {
-    text-align: center;
-    padding: 40px;
-    color: #888;
-}
-
 /* Responsive */
 @media (max-width: 768px) {
     header h1 {
+        font-size: 2rem;
+    }
+    
+    .price-value {
         font-size: 2rem;
     }
     
