@@ -1,10 +1,23 @@
-# CryptoMarket
+# GlobalMarket
 
-实时加密货币市场数据展示平台
+全球金融市场实时监控平台
 
-## 快速开始
+## 功能
 
-### 本地运行
+- **核心指标**：美元指数、VIX恐慌指数、原油、黄金、美债10年
+- **全球股指**：标普500、道指、纳指、日经225、韩国KOSPI、恒生、上证、德国DAX、英国FTSE、法国CAC
+- **加密货币**：BTC、ETH、SOL、XRP 实时价格
+- **ETF数据**：BTC、ETH、SOL、XRP ETF 资金流向
+
+## 数据源
+
+- Yahoo Finance（全球股指、大宗商品）
+- CoinGecko（加密货币价格）
+- Farside（BTC/ETH/SOL ETF）
+- SosoValue（XRP ETF）
+
+## 本地运行
+
 ```bash
 cd backend
 pip install -r requirements.txt
@@ -13,29 +26,6 @@ uvicorn main:app --reload
 
 访问 http://localhost:8000
 
-### Railway 部署
-1. Fork 本仓库到你的 GitHub
-2. 登录 https://railway.app（用 GitHub 账号）
-3. 创建 New Project → Deploy from GitHub repo
-4. 选择本仓库，自动部署
+## 部署
 
-## 项目结构
-```
-CryptoMarket/
-├── backend/
-│   ├── main.py           # FastAPI 后端
-│   ├── scraper.py        # 数据抓取
-│   └── btc_etf_data.json # 数据文件
-├── frontend/             # 前端文件
-├── requirements.txt      # Python 依赖
-├── railway.json          # Railway 配置
-└── README.md
-```
-
-## 数据来源
-- Farside BTC ETF Flow: https://farside.co.uk/btc/
-
-## 技术栈
-- 后端: Python + FastAPI
-- 前端: HTML + CSS + JavaScript
-- 部署: Railway (免费)
+Railway 自动部署

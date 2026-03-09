@@ -1,5 +1,6 @@
 /**
- * CryptoMarket 前端应用（支持 BTC + ETH + 实时价格）
+ * GlobalMarket 前端应用
+ * 支持：全球股指、核心指标、加密货币、ETF数据
  */
 
 // 格式化数字
@@ -10,8 +11,11 @@ function formatNumber(num) {
 }
 
 // 格式化价格
-function formatPrice(price) {
+function formatPrice(price, isIndex = false) {
     if (!price) return '-';
+    if (isIndex) {
+        return price.toLocaleString('en-US', {maximumFractionDigits: 0});
+    }
     return '$' + price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 }
 
@@ -47,41 +51,59 @@ async function fetchData() {
 }
 
 // 渲染价格卡片
-function renderPrices(prices) {
-    const container = document.getElementById('price-cards');
-    if (!prices || !prices.btc || !prices.eth) {
-        container.innerHTML = '<div class="price-card"><h3>价格加载中...</h3></div>';
-        return;
-    }
-
-    const btcChangeClass = prices.btc.change_24h >= 0 ? 'positive' : 'negative';
-    const ethChangeClass = prices.eth.change_24h >= 0 ? 'positive' : 'negative';
-
-    container.innerHTML = `
-        <div class="price-card btc">
-            <div class="price-header">
-                <img src="https://cryptologos.cc/logos/bitcoin-btc-logo.png" alt="BTC" class="coin-icon">
-                <h3>Bitcoin</h3>
+function renderPriceCard(containerId, data, isIndex = false) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    container.innerHTML = Object.entries(data).map(([key, item]) => {
+        const changeClass = item.change_pct >= 0 ? 'positive' : 'negative';
+        return `
+            <div class="price-card">
+                <h3>${item.name}</h3>
+                <div class="price-value">${formatPrice(item.price, isIndex)}</div>
+                <div class="price-change ${changeClass}">${formatPercent(item.change_pct)}</div>
             </div>
-            <div class="price-value">${formatPrice(prices.btc.price)}</div>
-            <div class="price-change ${btcChangeClass}">${formatPercent(prices.btc.change_24h)}</div>
-        </div>
-        <div class="price-card eth">
-            <div class="price-header">
-                <img src="https://cryptologos.cc/logos/ethereum-eth-logo.png" alt="ETH" class="coin-icon">
-                <h3>Ethereum</h3>
-            </div>
-            <div class="price-value">${formatPrice(prices.eth.price)}</div>
-            <div class="price-change ${ethChangeClass}">${formatPercent(prices.eth.change_24h)}</div>
-        </div>
-    `;
+        `;
+    }).join('');
 }
 
-// 渲染 ETF 汇总卡片
-function renderETFSummary(data, containerId, coin) {
+// 渲染核心指标
+function renderCoreIndicators(coreData) {
+    renderPriceCard('core-cards', coreData);
+}
+
+// 渲染全球股指
+function renderGlobalIndices(indicesData) {
+    renderPriceCard('index-cards', indicesData, true);
+}
+
+// 渲染加密货币
+function renderCrypto(cryptoData) {
+    const container = document.getElementById('crypto-cards');
+    if (!container || !cryptoData) return;
+    
+    const coins = ['BTC', 'ETH', 'SOL', 'XRP'];
+    const names = {'BTC': 'Bitcoin', 'ETH': 'Ethereum', 'SOL': 'Solana', 'XRP': 'XRP'};
+    
+    container.innerHTML = coins.map(coin => {
+        const data = cryptoData[coin];
+        if (!data) return '';
+        const changeClass = data.change_pct >= 0 ? 'positive' : 'negative';
+        return `
+            <div class="price-card crypto">
+                <h3>${names[coin]}</h3>
+                <div class="price-value">${formatPrice(data.price)}</div>
+                <div class="price-change ${changeClass}">${formatPercent(data.change_pct)}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+// 渲染 ETF 汇总
+function renderETFSummary(data, containerId) {
     const container = document.getElementById(containerId);
-    if (!data || !data.daily_data || data.daily_data.length === 0) {
-        container.innerHTML = '<div class="summary-card"><h3>暂无数据</h3></div>';
+    if (!container || !data || !data.daily_data) {
+        if (container) container.innerHTML = '<div class="summary-card"><h3>暂无数据</h3></div>';
         return;
     }
 
@@ -108,95 +130,79 @@ function renderETFSummary(data, containerId, coin) {
 // 渲染 ETF 表格
 function renderETFTable(data, tbodyId, coin) {
     const tbody = document.getElementById(tbodyId);
-    if (!data || !data.daily_data || data.daily_data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="13">暂无数据</td></tr>`;
+    if (!tbody || !data || !data.daily_data) {
+        if (tbody) tbody.innerHTML = '<tr><td colspan="13">暂无数据</td></tr>';
         return;
     }
 
     tbody.innerHTML = data.daily_data.map(row => {
         let cells;
         if (coin === 'btc') {
-            cells = [
-                row.date || '-',
-                row.blackrock || 0, row.fidelity || 0, row.bitwise || 0,
-                row.ark || 0, row.invesco || 0, row.franklin || 0,
-                row.valkyrie || 0, row.vaneck || 0, row.wtree || 0,
-                row.grayscale_gb || 0, row.grayscale_btc || 0, row.total || 0
-            ];
-        } else {
-            cells = [
-                row.date || '-',
-                row.blackrock || 0, row.fidelity || 0, row.bitwise || 0,
-                row.shares21 || 0, row.vaneck || 0, row.invesco || 0,
-                row.franklin || 0, row.grayscale_et || 0, row.grayscale_eth || 0,
-                row.total || 0
-            ];
+            cells = [row.date, row.blackrock, row.fidelity, row.bitwise, row.ark, row.invesco, 
+                     row.franklin, row.valkyrie, row.vaneck, row.wtree, row.grayscale_gb, row.grayscale_btc, row.total];
+        } else if (coin === 'eth') {
+            cells = [row.date, row.blackrock, row.fidelity, row.bitwise, row.shares21, row.vaneck, 
+                     row.invesco, row.franklin, row.grayscale_et, row.grayscale_eth, row.total];
+        } else if (coin === 'sol') {
+            cells = [row.date, row.blackrock, row.fidelity, row.bitwise, row.shares21, row.vaneck, 
+                     row.invesco, row.franklin, row.grayscale_sol, row.total];
+        } else if (coin === 'xrp') {
+            cells = [row.date, row.canary, row.bitwise, row.franklin, row.shares21, row.grayscale, row.total];
         }
 
-        return `
-            <tr>
-                ${cells.map((cell, index) => {
-                    if (index === 0) return `<td>${cell}</td>`;
-                    const value = parseFloat(cell) || 0;
-                    const className = value > 0 ? 'positive' : value < 0 ? 'negative' : '';
-                    return `<td class="${className}">${formatNumber(value)}</td>`;
-                }).join('')}
-            </tr>
-        `;
+        return `<tr>${cells.map((cell, idx) => {
+            if (idx === 0) return `<td>${cell || '-'}</td>`;
+            const value = parseFloat(cell) || 0;
+            const className = value > 0 ? 'positive' : value < 0 ? 'negative' : '';
+            return `<td class="${className}">${formatNumber(value)}</td>`;
+        }).join('')}</tr>`;
     }).join('');
 }
 
 // 更新页面
 async function updatePage() {
     const result = await fetchData();
-    
-    if (result && result.data) {
-        const { data, server_time } = result;
-        
-        // 渲染价格
-        if (data.prices) {
-            renderPrices(data.prices);
-        }
-        
-        // 渲染 BTC
-        if (data.btc) {
-            const btcUpdateEl = document.getElementById('btc-last-update');
-            if (btcUpdateEl) {
-                btcUpdateEl.textContent = `最后更新: ${formatDate(data.btc.last_updated)}`;
-            }
-            renderETFSummary(data.btc, 'btc-summary', 'btc');
-            renderETFTable(data.btc, 'btc-table-body', 'btc');
-        }
-        
-        // 渲染 ETH
-        if (data.eth) {
-            const ethUpdateEl = document.getElementById('eth-last-update');
-            if (ethUpdateEl) {
-                ethUpdateEl.textContent = `最后更新: ${formatDate(data.eth.last_updated)}`;
-            }
-            renderETFSummary(data.eth, 'eth-summary', 'eth');
-            renderETFTable(data.eth, 'eth-table-body', 'eth');
-        }
-    } else {
-        console.error('数据加载失败');
+    if (!result || !result.data) return;
+
+    const { data } = result;
+
+    // 渲染核心指标
+    if (data.markets && data.markets.core) {
+        renderCoreIndicators(data.markets.core);
     }
+
+    // 渲染全球股指
+    if (data.markets && data.markets.indices) {
+        renderGlobalIndices(data.markets.indices);
+    }
+
+    // 渲染加密货币
+    if (data.crypto) {
+        renderCrypto(data.crypto);
+    }
+
+    // 渲染 ETF 数据
+    ['btc', 'eth', 'sol', 'xrp'].forEach(coin => {
+        const etfData = data[`${coin}_etf`];
+        if (etfData) {
+            const updateEl = document.getElementById(`${coin}-last-update`);
+            if (updateEl) updateEl.textContent = `最后更新: ${formatDate(etfData.last_updated)}`;
+            
+            renderETFSummary(etfData, `${coin}-summary`);
+            renderETFTable(etfData, `${coin}-table-body`, coin);
+        }
+    });
 }
 
-// TAB 切换功能
+// TAB 切换
 function initTabs() {
-    const tabBtns = document.querySelectorAll('.tab-btn');
-    const tabContents = document.querySelectorAll('.tab-content');
-    
-    tabBtns.forEach(btn => {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            // 移除所有 active
-            tabBtns.forEach(b => b.classList.remove('active'));
-            tabContents.forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             
-            // 添加 active 到当前
             btn.classList.add('active');
-            const tabId = btn.getAttribute('data-tab') + '-tab';
-            document.getElementById(tabId).classList.add('active');
+            document.getElementById(`${btn.dataset.tab}-tab`).classList.add('active');
         });
     });
 }
@@ -205,10 +211,7 @@ function initTabs() {
 async function init() {
     await updatePage();
     initTabs();
-    
-    // 每 5 分钟自动刷新
-    setInterval(updatePage, 5 * 60 * 1000);
+    setInterval(updatePage, 5 * 60 * 1000); // 每5分钟刷新
 }
 
-// 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', init);

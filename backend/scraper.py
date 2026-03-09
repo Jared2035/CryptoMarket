@@ -1,5 +1,6 @@
 """
-Farside ETF 数据抓取模块（支持 BTC 和 ETH）
+GlobalMarket 数据抓取模块
+支持：全球股指、大宗商品、加密货币、ETF数据
 """
 
 import json
@@ -10,37 +11,138 @@ from bs4 import BeautifulSoup
 
 DATA_DIR = os.path.dirname(__file__)
 
+# Yahoo Finance API 基础URL
+YAHOO_BASE = "https://query1.finance.yahoo.com/v8/finance/chart/"
+
+# 全球股指代码
+INDICES = {
+    # 美股
+    'SP500': {'symbol': '^GSPC', 'name': '标普500'},
+    'DOW': {'symbol': '^DJI', 'name': '道指'},
+    'NASDAQ': {'symbol': '^IXIC', 'name': '纳指'},
+    # 亚太
+    'NIKKEI': {'symbol': '^N225', 'name': '日经225'},
+    'KOSPI': {'symbol': '^KS11', 'name': '韩国KOSPI'},
+    'HANGSENG': {'symbol': '^HSI', 'name': '恒生'},
+    'SHANGHAI': {'symbol': '000001.SS', 'name': '上证'},
+    # 欧洲
+    'DAX': {'symbol': '^GDAXI', 'name': '德国DAX'},
+    'FTSE': {'symbol': '^FTSE', 'name': '英国FTSE'},
+    'CAC': {'symbol': '^FCHI', 'name': '法国CAC'},
+}
+
+# 核心指标
+CORE_INDICATORS = {
+    'DXY': {'symbol': 'DX-Y.NYB', 'name': '美元指数'},
+    'VIX': {'symbol': '^VIX', 'name': 'VIX恐慌'},
+    'CRUDE': {'symbol': 'CL=F', 'name': '原油'},
+    'GOLD': {'symbol': 'GC=F', 'name': '黄金'},
+    'US10Y': {'symbol': '^TNX', 'name': '美债10年'},
+}
+
 
 def parse_value(value_str):
-    """解析数值，处理括号和逗号"""
+    """解析数值"""
     if not value_str or value_str == '-' or value_str == '':
         return 0
-    cleaned = value_str.replace('(', '-').replace(')', '').replace(',', '')
+    cleaned = value_str.replace('(', '-').replace(')', '').replace(',', '').replace('%', '')
     try:
         return float(cleaned)
     except ValueError:
         return 0
 
 
-def scrape_etf_flow(coin='btc'):
-    """
-    抓取 Farside ETF Flow 数据
+def get_yahoo_price(symbol):
+    """从 Yahoo Finance 获取实时价格"""
+    try:
+        url = f"{YAHOO_BASE}{symbol}"
+        params = {'interval': '1d', 'range': '1d'}
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        
+        response = requests.get(url, params=params, headers=headers, timeout=10)
+        data = response.json()
+        
+        if 'chart' in data and 'result' in data['chart'] and data['chart']['result']:
+            result = data['chart']['result'][0]
+            meta = result['meta']
+            
+            price = meta.get('regularMarketPrice', 0)
+            prev_close = meta.get('previousClose', price)
+            change = price - prev_close
+            change_pct = (change / prev_close * 100) if prev_close else 0
+            
+            return {
+                'price': price,
+                'change': change,
+                'change_pct': change_pct
+            }
+    except Exception as e:
+        print(f"获取 {symbol} 价格失败: {e}")
     
-    Args:
-        coin: 'btc' 或 'eth'
-    
-    Returns:
-        dict: ETF 数据
-    """
-    url = f'https://farside.co.uk/{coin}/'
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    return None
+
+
+def get_global_markets():
+    """获取全球市场行情"""
+    result = {
+        'indices': {},
+        'core': {},
+        'last_updated': datetime.now().isoformat()
     }
+    
+    # 获取全球股指
+    for key, info in INDICES.items():
+        data = get_yahoo_price(info['symbol'])
+        if data:
+            result['indices'][key] = {
+                'name': info['name'],
+                **data
+            }
+    
+    # 获取核心指标
+    for key, info in CORE_INDICATORS.items():
+        data = get_yahoo_price(info['symbol'])
+        if data:
+            result['core'][key] = {
+                'name': info['name'],
+                **data
+            }
+    
+    return result
+
+
+def get_crypto_prices():
+    """获取加密货币价格（CoinGecko）"""
+    try:
+        url = 'https://api.coingecko.com/api/v3/simple/price'
+        params = {
+            'ids': 'bitcoin,ethereum,solana,ripple',
+            'vs_currencies': 'usd',
+            'include_24hr_change': 'true'
+        }
+        
+        response = requests.get(url, params=params, timeout=10)
+        data = response.json()
+        
+        return {
+            'BTC': {'price': data['bitcoin']['usd'], 'change_pct': data['bitcoin'].get('usd_24h_change', 0)},
+            'ETH': {'price': data['ethereum']['usd'], 'change_pct': data['ethereum'].get('usd_24h_change', 0)},
+            'SOL': {'price': data['solana']['usd'], 'change_pct': data['solana'].get('usd_24h_change', 0)},
+            'XRP': {'price': data['ripple']['usd'], 'change_pct': data['ripple'].get('usd_24h_change', 0)},
+            'last_updated': datetime.now().isoformat()
+        }
+    except Exception as e:
+        print(f"获取加密货币价格失败: {e}")
+        return None
+
+
+def scrape_farside_etf(coin='btc'):
+    """从 Farside 抓取 ETF 数据"""
+    url = f'https://farside.co.uk/{coin}/'
+    headers = {'User-Agent': 'Mozilla/5.0'}
     
     try:
         response = requests.get(url, headers=headers, timeout=30)
-        response.raise_for_status()
-        
         soup = BeautifulSoup(response.text, 'lxml')
         tables = soup.find_all('table')
         
@@ -50,13 +152,13 @@ def scrape_etf_flow(coin='btc'):
         target_table = tables[1]
         result = {'headers': [], 'daily_data': [], 'summary': {}}
         
-        # 获取表头
+        # 解析表头
         header_row = target_table.find('thead')
         if header_row:
             headers = header_row.find_all('th')
             result['headers'] = [h.get_text(strip=True) for h in headers]
         
-        # 获取数据行
+        # 解析数据
         tbody = target_table.find('tbody')
         if tbody:
             rows = tbody.find_all('tr')
@@ -71,10 +173,8 @@ def scrape_etf_flow(coin='btc'):
                         result['summary'][date_str] = row_data
                     else:
                         try:
-                            # 动态解析列数（BTC 和 ETH 列数不同）
                             data_row = {'date': date_str}
                             
-                            # 根据 coin 类型解析不同的列
                             if coin == 'btc':
                                 data_row.update({
                                     'blackrock': parse_value(row_data[1]),
@@ -103,6 +203,19 @@ def scrape_etf_flow(coin='btc'):
                                     'grayscale_eth': parse_value(row_data[9]),
                                     'total': parse_value(row_data[10])
                                 })
+                            elif coin == 'sol':
+                                # SOL 数据结构类似 ETH
+                                data_row.update({
+                                    'blackrock': parse_value(row_data[1]),
+                                    'fidelity': parse_value(row_data[2]),
+                                    'bitwise': parse_value(row_data[3]),
+                                    'shares21': parse_value(row_data[4]),
+                                    'vaneck': parse_value(row_data[5]),
+                                    'invesco': parse_value(row_data[6]),
+                                    'franklin': parse_value(row_data[7]),
+                                    'grayscale_sol': parse_value(row_data[8]),
+                                    'total': parse_value(row_data[9])
+                                })
                             
                             result['daily_data'].append(data_row)
                         except (IndexError, ValueError):
@@ -112,114 +225,87 @@ def scrape_etf_flow(coin='btc'):
         return result
         
     except Exception as e:
-        print(f"抓取 {coin.upper()} 失败: {e}")
+        print(f"抓取 {coin} ETF 失败: {e}")
         return None
 
 
-def get_crypto_prices():
-    """
-    获取 BTC 和 ETH 实时价格（CoinGecko 免费 API）
-    """
+def scrape_sosovalue_xrp():
+    """从 SosoValue 抓取 XRP ETF 数据"""
+    url = 'https://sosovalue.com/zh/assets/etf/us-xrp-spot'
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    
     try:
-        url = 'https://api.coingecko.com/api/v3/simple/price'
-        params = {
-            'ids': 'bitcoin,ethereum',
-            'vs_currencies': 'usd',
-            'include_24hr_change': 'true'
-        }
+        response = requests.get(url, headers=headers, timeout=30)
+        soup = BeautifulSoup(response.text, 'lxml')
         
-        response = requests.get(url, params=params, timeout=10)
-        response.raise_for_status()
-        data = response.json()
+        # 解析 XRP ETF 数据
+        result = {'daily_data': [], 'summary': {}}
         
-        return {
-            'btc': {
-                'price': data['bitcoin']['usd'],
-                'change_24h': data['bitcoin'].get('usd_24h_change', 0)
-            },
-            'eth': {
-                'price': data['ethereum']['usd'],
-                'change_24h': data['ethereum'].get('usd_24h_change', 0)
-            },
-            'last_updated': datetime.now().isoformat()
-        }
+        # 查找历史数据表格
+        # 注意：SosoValue 是动态加载，这里简化处理
+        # 实际抓取可能需要 Playwright
+        
+        # 尝试从页面提取数据
+        scripts = soup.find_all('script')
+        for script in scripts:
+            if script.string and 'xrp' in script.string.lower():
+                # 提取 JSON 数据
+                pass
+        
+        # 简化：返回空数据，后续用浏览器抓取
+        result['last_updated'] = datetime.now().isoformat()
+        return result
+        
     except Exception as e:
-        print(f"获取价格失败: {e}")
+        print(f"抓取 XRP ETF 失败: {e}")
         return None
 
 
-def load_data(coin='btc'):
+def auto_update_etf(coin='btc'):
+    """自动更新 ETF 数据"""
+    if coin in ['btc', 'eth', 'sol']:
+        new_data = scrape_farside_etf(coin)
+    elif coin == 'xrp':
+        new_data = scrape_sosovalue_xrp()
+    else:
+        return False, f"不支持 {coin}"
+    
+    if new_data and len(new_data.get('daily_data', [])) > 0:
+        filepath = os.path.join(DATA_DIR, f'{coin}_etf_data.json')
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(new_data, f, ensure_ascii=False, indent=2)
+        return True, f"{coin.upper()}: 更新成功"
+    
+    return False, f"{coin.upper()}: 抓取失败"
+
+
+def load_data(name):
     """加载缓存数据"""
-    filepath = os.path.join(DATA_DIR, f'{coin}_etf_data.json')
+    filepath = os.path.join(DATA_DIR, f'{name}.json')
     if os.path.exists(filepath):
         with open(filepath, 'r', encoding='utf-8') as f:
             return json.load(f)
     return None
 
 
-def save_data(data, coin='btc'):
-    """保存数据到 JSON 文件"""
-    filepath = os.path.join(DATA_DIR, f'{coin}_etf_data.json')
-    with open(filepath, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-
-def auto_update(coin='btc'):
-    """
-    自动更新数据
-    返回: (成功/失败, 消息)
-    """
-    now = datetime.now()
-    weekday = now.weekday()
-    
-    # 周末不更新
-    if weekday >= 5:
-        return False, f"{coin.upper()}: 周末休市"
-    
-    # 加载现有数据
-    old_data = load_data(coin)
-    
-    # 尝试抓取
-    new_data = scrape_etf_flow(coin)
-    
-    if new_data and len(new_data['daily_data']) > 0:
-        latest_new = new_data['daily_data'][0]['date']
-        
-        if old_data and len(old_data['daily_data']) > 0:
-            latest_old = old_data['daily_data'][0]['date']
-            
-            if latest_new == latest_old:
-                # 数据相同，只更新时间戳
-                old_data['last_updated'] = datetime.now().isoformat()
-                save_data(old_data, coin)
-                return True, f"{coin.upper()}: 数据未变化（{latest_new}）"
-        
-        # 保存新数据
-        save_data(new_data, coin)
-        return True, f"{coin.upper()}: 更新成功（{latest_new}）"
-    
-    return False, f"{coin.upper()}: 抓取失败"
-
-
 def get_all_data():
-    """获取所有数据（BTC + ETH + 价格）"""
+    """获取所有数据"""
     return {
-        'btc': load_data('btc'),
-        'eth': load_data('eth'),
-        'prices': get_crypto_prices()
+        'markets': get_global_markets(),
+        'crypto': get_crypto_prices(),
+        'btc_etf': load_data('btc_etf_data'),
+        'eth_etf': load_data('eth_etf_data'),
+        'sol_etf': load_data('sol_etf_data'),
+        'xrp_etf': load_data('xrp_etf_data'),
     }
 
 
 if __name__ == '__main__':
     # 测试
-    print("测试 BTC 抓取...")
-    result = auto_update('btc')
-    print(result)
+    print("测试全球市场数据...")
+    markets = get_global_markets()
+    print(f"获取了 {len(markets['indices'])} 个股指, {len(markets['core'])} 个核心指标")
     
-    print("\n测试 ETH 抓取...")
-    result = auto_update('eth')
-    print(result)
-    
-    print("\n测试价格获取...")
-    prices = get_crypto_prices()
-    print(prices)
+    print("\n测试加密货币价格...")
+    crypto = get_crypto_prices()
+    print(crypto)

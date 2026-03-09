@@ -3,43 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CryptoMarket - BTC & ETH ETF Flow</title>
+    <title>GlobalMarket - 全球金融市场实时监控</title>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>CryptoMarket</h1>
-            <p class="subtitle">实时加密货币市场数据</p>
+            <h1>GlobalMarket</h1>
+            <p class="subtitle">全球金融市场实时监控</p>
         </header>
 
         <main>
-            <!-- 价格显示区域 -->
-            <section class="prices-section">
-                <div class="price-cards" id="price-cards">
-                    <!-- 价格卡片将在这里显示 -->
+            <!-- 核心指标 -->
+            <section class="core-indicators">
+                <div class="price-cards" id="core-cards">
+                    <!-- 核心指标卡片 -->
                 </div>
             </section>
 
-            <!-- TAB 切换 -->
+            <!-- 全球股指 -->
+            <section class="global-indices">
+                <h2 class="section-title">全球股指</h2>
+                <div class="price-cards" id="index-cards">
+                    <!-- 股指卡片 -->
+                </div>
+            </section>
+
+            <!-- 加密货币 -->
+            <section class="crypto-section">
+                <h2 class="section-title">加密货币</h2>
+                <div class="price-cards" id="crypto-cards">
+                    <!-- 加密货币卡片 -->
+                </div>
+            </section>
+
+            <!-- TAB 切换 - ETF数据 -->
             <div class="tab-container">
                 <div class="tab-buttons">
-                    <button class="tab-btn active" data-tab="btc">Bitcoin ETF</button>
-                    <button class="tab-btn" data-tab="eth">Ethereum ETF</button>
+                    <button class="tab-btn active" data-tab="btc">BTC ETF</button>
+                    <button class="tab-btn" data-tab="eth">ETH ETF</button>
+                    <button class="tab-btn" data-tab="sol">SOL ETF</button>
+                    <button class="tab-btn" data-tab="xrp">XRP ETF</button>
                 </div>
 
-                <!-- BTC 内容 -->
+                <!-- BTC ETF -->
                 <div class="tab-content active" id="btc-tab">
                     <section class="data-card">
                         <div class="card-header">
                             <h2>Bitcoin ETF Flow</h2>
-                            <div class="update-info">
-                                <span id="btc-last-update">加载中...</span>
-                            </div>
+                            <span id="btc-last-update">加载中...</span>
                         </div>
-                        
                         <div class="summary-cards" id="btc-summary"></div>
-
                         <div class="table-container">
                             <table id="btc-table">
                                 <thead>
@@ -65,18 +79,14 @@
                     </section>
                 </div>
 
-                <!-- ETH 内容 -->
+                <!-- ETH ETF -->
                 <div class="tab-content" id="eth-tab">
                     <section class="data-card">
                         <div class="card-header">
                             <h2>Ethereum ETF Flow</h2>
-                            <div class="update-info">
-                                <span id="eth-last-update">加载中...</span>
-                            </div>
+                            <span id="eth-last-update">加载中...</span>
                         </div>
-                        
                         <div class="summary-cards" id="eth-summary"></div>
-
                         <div class="table-container">
                             <table id="eth-table">
                                 <thead>
@@ -99,12 +109,69 @@
                         </div>
                     </section>
                 </div>
+
+                <!-- SOL ETF -->
+                <div class="tab-content" id="sol-tab">
+                    <section class="data-card">
+                        <div class="card-header">
+                            <h2>Solana ETF Flow</h2>
+                            <span id="sol-last-update">加载中...</span>
+                        </div>
+                        <div class="summary-cards" id="sol-summary"></div>
+                        <div class="table-container">
+                            <table id="sol-table">
+                                <thead>
+                                    <tr>
+                                        <th>日期</th>
+                                        <th>Blackrock</th>
+                                        <th>Fidelity</th>
+                                        <th>Bitwise</th>
+                                        <th>21Shares</th>
+                                        <th>VanEck</th>
+                                        <th>Invesco</th>
+                                        <th>Franklin</th>
+                                        <th>Grayscale SOL</th>
+                                        <th class="total">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sol-table-body"></tbody>
+                            </table>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- XRP ETF -->
+                <div class="tab-content" id="xrp-tab">
+                    <section class="data-card">
+                        <div class="card-header">
+                            <h2>XRP ETF Flow</h2>
+                            <span id="xrp-last-update">加载中...</span>
+                        </div>
+                        <div class="summary-cards" id="xrp-summary"></div>
+                        <div class="table-container">
+                            <table id="xrp-table">
+                                <thead>
+                                    <tr>
+                                        <th>日期</th>
+                                        <th>Canary</th>
+                                        <th>Bitwise</th>
+                                        <th>Franklin</th>
+                                        <th>21Shares</th>
+                                        <th>Grayscale</th>
+                                        <th class="total">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="xrp-table-body"></tbody>
+                            </table>
+                        </div>
+                    </section>
+                </div>
             </div>
         </main>
 
         <footer>
-            <p>数据来源: <a href="https://farside.co.uk/" target="_blank">Farside Investors</a> | 价格: <a href="https://www.coingecko.com/" target="_blank">CoinGecko</a></p>
-            <p>&copy; 2026 CryptoMarket</p>
+            <p>数据来源: Yahoo Finance | CoinGecko | Farside | SosoValue</p>
+            <p>&copy; 2026 GlobalMarket</p>
         </footer>
     </div>
 
