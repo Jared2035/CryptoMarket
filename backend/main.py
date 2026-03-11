@@ -13,6 +13,10 @@ app.mount("/static", StaticFiles(directory="../frontend"), name="static")
 # 全局数据缓存
 cached_data = {}
 last_etf_update = None  # 上次 ETF 更新时间
+last_market_update = None  # 上次市场数据更新时间
+
+# 更新间隔（分钟）
+MARKET_UPDATE_INTERVAL = 5  # 市场数据每5分钟更新
 
 
 def load_last_etf_update_time():
@@ -70,15 +74,52 @@ def should_update_etf():
     # 需要更新（今天 10:00 后还没更新过）
     return True
 
+
+def should_update_market():
+    """判断是否需要更新市场数据（每5分钟）"""
+    global last_market_update
+    
+    now = datetime.now()
+    
+    if last_market_update is None:
+        return True
+    
+    # 检查是否过了5分钟
+    time_diff = (now - last_market_update).total_seconds()
+    return time_diff >= MARKET_UPDATE_INTERVAL * 60
+
+
+async def periodic_market_update():
+    """定时更新市场数据"""
+    global cached_data, last_market_update
+    
+    while True:
+        try:
+            if should_update_market():
+                print(f"[{datetime.now()}] 定时更新市场数据...")
+                cached_data['markets'] = get_global_markets()
+                cached_data['crypto'] = get_crypto_prices()
+                last_market_update = datetime.now()
+                print(f"[{datetime.now()}] 市场数据更新完成")
+        except Exception as e:
+            print(f"[{datetime.now()}] 市场数据更新失败: {e}")
+        
+        await asyncio.sleep(MARKET_UPDATE_INTERVAL * 60)  # 每5分钟
+
+
 @app.on_event("startup")
 async def startup_event():
     """启动时加载数据"""
-    global cached_data, last_etf_update
+    global cached_data, last_etf_update, last_market_update
     cached_data = get_all_data()
     last_etf_update = load_last_etf_update_time()
+    last_market_update = datetime.now()
     print(f"启动完成，数据加载成功")
     if last_etf_update:
         print(f"上次 ETF 更新时间: {last_etf_update}")
+    
+    # 启动定时任务
+    asyncio.create_task(periodic_market_update())
 
 
 @app.get("/")
@@ -90,12 +131,11 @@ async def root():
 
 @app.get("/api/data")
 async def get_data(background_tasks: BackgroundTasks):
-    """获取所有数据"""
+    """获取所有数据（使用缓存，定时更新）"""
     global cached_data, last_etf_update
     
-    # 每次请求都更新市场数据（保持最新）
-    cached_data['markets'] = get_global_markets()
-    cached_data['crypto'] = get_crypto_prices()
+    # 市场数据由定时任务更新，这里直接返回缓存
+    # 如果缓存为空，启动时加载的数据会被使用
     
     # 检查是否需要更新 ETF 数据
     if should_update_etf():
@@ -105,7 +145,8 @@ async def get_data(background_tasks: BackgroundTasks):
     return {
         'data': cached_data,
         'server_time': datetime.now().isoformat(),
-        'etf_last_updated': last_etf_update.isoformat() if last_etf_update else None
+        'etf_last_updated': last_etf_update.isoformat() if last_etf_update else None,
+        'market_last_updated': last_market_update.isoformat() if last_market_update else None
     }
 
 

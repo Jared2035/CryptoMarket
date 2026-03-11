@@ -242,8 +242,9 @@ def get_crypto_prices():
     }
 
 
+
 def scrape_yahoo_etf(coin='btc'):
-    """从 Yahoo Finance 抓取 ETF 数据"""
+    """从 Yahoo Finance 抓取 ETF 价格数据"""
     # BTC ETF 代码
     btc_etfs = {
         'IBIT': 'iShares Bitcoin Trust',
@@ -273,23 +274,23 @@ def scrape_yahoo_etf(coin='btc'):
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     }
     
-    result = {
-        'headers': ['Date', 'Price', 'Change', 'Change %'],
-        'daily_data': [],
-        'summary': {}
-    }
-    
     etf_map = {
         'btc': btc_etfs,
         'eth': eth_etfs,
         'sol': sol_etfs
     }
     
+    result = {
+        'headers': ['Date', 'IBIT', 'FBTC', 'ARKB', 'BITB', 'BRRR', 'BTCW', 'Average'],
+        'daily_data': [],
+        'summary': {}
+    }
+    
     symbols = list(etf_map.get(coin, btc_etfs).keys())
     
     try:
-        # 获取每个 ETF 的价格数据
         all_data = {}
+        
         for symbol in symbols:
             try:
                 url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
@@ -303,56 +304,37 @@ def scrape_yahoo_etf(coin='btc'):
                 
                 if 'chart' in data and data['chart']['result']:
                     result_data = data['chart']['result'][0]
-                    meta = result_data['meta']
-                    quotes = result_data['indicators']['quote'][0]
-                    
                     timestamps = result_data.get('timestamp', [])
+                    quotes = result_data['indicators']['quote'][0]
                     closes = quotes.get('close', [])
                     
                     if timestamps and closes:
-                        latest_idx = len(closes) - 1
-                        while latest_idx >= 0 and closes[latest_idx] is None:
-                            latest_idx -= 1
-                        
-                        if latest_idx >= 0:
-                            price = closes[latest_idx]
-                            prev_price = closes[latest_idx - 1] if latest_idx > 0 and closes[latest_idx - 1] else price
-                            
-                            change = price - prev_price
-                            change_pct = (change / prev_price * 100) if prev_price else 0
-                            
-                            date = datetime.fromtimestamp(timestamps[latest_idx]).strftime('%Y-%m-%d')
-                            
-                            all_data[symbol] = {
-                                'price': price,
-                                'change': change,
-                                'change_pct': change_pct,
-                                'date': date
-                            }
+                        for i, (ts, close) in enumerate(zip(timestamps, closes)):
+                            if close is not None:
+                                date = datetime.fromtimestamp(ts).strftime('%Y-%m-%d')
+                                if date not in all_data:
+                                    all_data[date] = {}
+                                all_data[date][symbol] = close
             except Exception as e:
                 print(f"获取 {symbol} 失败: {e}")
         
-        # 整理数据
         if all_data:
-            # 按日期分组
-            dates = sorted(set(d['date'] for d in all_data.values()), reverse=True)
-            
-            for date in dates[:5]:  # 最近5天
+            for date in sorted(all_data.keys(), reverse=True)[:10]:
                 row = {'date': date}
-                total_price = 0
+                prices = all_data[date]
+                total = 0
                 count = 0
-                for symbol, data in all_data.items():
-                    if data['date'] == date:
-                        row[symbol] = round(data['price'], 2)
-                        total_price += data['price']
+                for sym in symbols:
+                    if sym in prices:
+                        row[sym] = round(prices[sym], 2)
+                        total += prices[sym]
                         count += 1
-                
                 if count > 0:
-                    row['average'] = round(total_price / count, 2)
+                    row['Average'] = round(total / count, 2)
                     result['daily_data'].append(row)
         
         result['last_updated'] = datetime.now().isoformat()
-        print(f"Yahoo Finance ETF 数据获取成功: {coin}")
+        print(f"Yahoo Finance ETF 数据获取成功: {coin} ({len(result['daily_data'])} 条)")
         return result
         
     except Exception as e:
@@ -399,7 +381,8 @@ def scrape_sosovalue_xrp():
 
 
 def auto_update_etf(coin='btc'):
-    """自动更新 ETF 数据"""
+    """自动更新 ETF 数据 - 使用 Yahoo Finance"""
+    # 直接使用 Yahoo Finance（更稳定）
     if coin in ['btc', 'eth', 'sol', 'xrp']:
         new_data = scrape_yahoo_etf(coin)
     else:
