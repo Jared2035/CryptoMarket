@@ -184,7 +184,7 @@
     },
     {
       "date": "12 Mar 2026",
-      "blackrock": 0.0,
+      "blackrock": 18.7,
       "fidelity": 52.0,
       "bitwise": 0.9,
       "shares21": 0.0,
@@ -193,35 +193,9 @@
       "franklin": 0.8,
       "grayscale_et": 0.0,
       "grayscale_eth": 0.0,
-      "total": 53.7
-    },
-    {
-      "date": "Maximum",
-      "blackrock": 639.8,
-      "fidelity": 276.9,
-      "bitwise": 204.0,
-      "shares21": 8.0,
-      "vaneck": 19.8,
-      "invesco": 6.7,
-      "franklin": 13.2,
-      "grayscale_et": 53.7,
-      "grayscale_eth": 99.8,
-      "total": 1018.8
-    },
-    {
-      "date": "Minimum",
-      "blackrock": -375.0,
-      "fidelity": -272.2,
-      "bitwise": -56.1,
-      "shares21": -14.7,
-      "vaneck": -18.7,
-      "invesco": -8.4,
-      "franklin": -6.6,
-      "grayscale_et": -484.1,
-      "grayscale_eth": -88.5,
-      "total": -465.1
+      "total": 72.4
     }
   ],
   "summary": {},
-  "last_updated": "2026-03-13T11:42:53.245782"
+  "last_updated": "2026-03-13T12:00:37.538668"
 }
