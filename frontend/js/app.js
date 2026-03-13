@@ -199,7 +199,15 @@ function renderETFTable(data, tbodyId, coin) {
             cells = [row.date, row.bitwise, row.vaneck1, row.vaneck2, row.vaneck3, 
                      row.franklin, row.grayscale, row.total];
         } else if (coin === 'xrp') {
-            cells = [row.date, row.canary, row.bitwise, row.franklin, row.shares21, row.grayscale, row.total];
+            // XRP 数据可能只有 total（从 SosoValue 抓取的总体数据）
+            // 或者包含各发行商数据（从其他来源）
+            cells = [row.date, 
+                     row.canary || 0, 
+                     row.bitwise || 0, 
+                     row.franklin || 0, 
+                     row.shares21 || 0, 
+                     row.grayscale || 0, 
+                     row.total || 0];
         }
 
         return `<tr>${cells.map((cell, idx) => {
